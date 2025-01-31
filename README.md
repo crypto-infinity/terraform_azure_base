@@ -30,11 +30,17 @@ git clone https://github.com/crypto-infinity/terraform_azure_base
     - terraform.tf (subscription_id)  
     - provider.tf (subscription_id) - initializes the provider
 
-4) Create rg-iac, with a storage account inside, with a container named "tfstate".
+4) Create rg-iac in Azure, with a storage account inside, with a container named "tfstate".
 
 5) Modify, in terraform.tf, storage_account_name according to the storage account name created in step 4.
 
-6) Apply!
+6) Run init:
+
+```bash
+terraform init
+```
+
+7) Apply:
 
 ```bash
 terraform apply

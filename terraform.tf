@@ -9,7 +9,7 @@ terraform {
   backend "azurerm" {
       subscription_id = "" #Enter Sub ID Here
       resource_group_name  = "rg-iac"
-      storage_account_name = "storagetfinfiac"
+      storage_account_name = "" #Set RG-IAC storage account name created at point 4
       container_name       = "tfstate"
       key                  = "terraform.tfstate"
   }
