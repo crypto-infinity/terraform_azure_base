@@ -155,7 +155,7 @@ resource "azurerm_network_interface" "nics" {
   name                          = "${each.key}-nic"
   resource_group_name           = each.value.rg
 
-  enable_accelerated_networking = true
+  accelerated_networking_enabled = true
 
   tags = {
     environment = each.value.environment
