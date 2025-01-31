@@ -1,3 +1,14 @@
+#Random password
+resource "random_password" "password" {
+  length      = 20
+  min_lower   = 1
+  min_upper   = 1
+  min_numeric = 1
+  min_special = 1
+  special     = true
+}
+
+#Random Generator
 resource "random_id" "id" {
   keepers = {
     # Generate a new id
@@ -68,8 +79,10 @@ resource "azurerm_windows_virtual_machine" "vms" {
 
   #Basic Tab
   name                  = each.key
-  admin_password        = each.value.admin_password
+  
+  #Default user
   admin_username        = each.value.admin_username
+  admin_password        = random_password.password.result
   
   #License
   license_type          = each.value.license_type
@@ -122,6 +135,28 @@ resource "azurerm_windows_virtual_machine" "vms" {
     azurerm_resource_group.rgs,
     azurerm_subnet.subnets
   ]
+}
+
+#Custom script installation /scripts/deployment.ps1
+resource "azurerm_virtual_machine_extension" "custom_script_extension" {
+  for_each = var.vm_configs
+
+  #Basic VM Extension Settings
+  name                       = "WMICustomScriptExtension"
+  virtual_machine_id         = azurerm_windows_virtual_machine.vms[each.key].id
+
+  publisher                  = "Microsoft.Compute"
+  type                       = "CustomScriptExtension"
+  type_handler_version       = "1.9"
+
+  #Run /scripts/deployment.ps1 inside Windows VM
+  settings = <<SETTINGS
+    {
+      "commandToExecute": "powershell -encodedCommand ${textencodebase64(file("${path.module}/scripts/deployment.ps1"), "UTF-16LE")}"
+    }
+  SETTINGS
+
+  depends_on = [ azurerm_windows_virtual_machine.vms ]
 }
 
 #Public IPs for VMs
