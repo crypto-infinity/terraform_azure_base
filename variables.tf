@@ -17,6 +17,7 @@ variable "subscription_id" {
 }
 
 variable "vnet_configs" {
+  description = "A map representing all vnets to configure."
   type = map(object({
     address_space = list(string)
     location = string
@@ -35,6 +36,7 @@ variable "keepers_id" {
 }
 
 variable "subnets_configs" {
+  description = "A map representing all subnets in previouslt declared vnets to configure."
   type = map(object({
     name = string
     address_prefixes = list(string)
@@ -44,6 +46,7 @@ variable "subnets_configs" {
 }
 
 variable "vm_configs" {
+  description = "A map representing all VMs to configure."
   type = map(object({
     admin_username        = string
     admin_password        = string
@@ -53,10 +56,13 @@ variable "vm_configs" {
     location              = string
     license_type          = string
     subnet_name             = string
+    secure_boot_enabled   = bool
+    ip_configuration      = string
     os_disk = object({
       caching              = string
       storage_account_type = string
     })
+
     source_image_reference = object({
       offer     = string
       publisher = string
@@ -66,4 +72,14 @@ variable "vm_configs" {
   }))
   default = {
   }
+}
+
+variable "rsv_name" {
+  description = "Recovery Services Vault name."
+  type = string
+}
+
+variable "vpn_gw_name" {
+  description = "VPN Gateway name."
+  type = string
 }

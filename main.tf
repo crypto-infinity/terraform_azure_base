@@ -30,7 +30,7 @@ resource "azurerm_storage_account" "boot_diagnostics" {
   name = "mgmtsa${random_id.id.hex}"
 
   location = var.locations[0]
-  resource_group_name = "rg-mgmt"
+  resource_group_name = var.resource_group_names[2]
 
   account_tier = "Standard"
   account_replication_type = "LRS"
@@ -82,7 +82,7 @@ resource "azurerm_windows_virtual_machine" "vms" {
   
   #Default user
   admin_username        = each.value.admin_username
-  admin_password        = random_password.password.result
+  admin_password        = each.value.admin_password
   
   #License
   license_type          = each.value.license_type
@@ -100,12 +100,11 @@ resource "azurerm_windows_virtual_machine" "vms" {
   hotpatching_enabled   = true
   
   #TPM Settings
-  secure_boot_enabled   = false
+  secure_boot_enabled   = each.value.secure_boot_enabled
   vtpm_enabled          = false
 
   #Sizing
   size                  = each.value.size
-
   #Tags
   tags = {
     environment = each.value.environment
@@ -137,7 +136,17 @@ resource "azurerm_windows_virtual_machine" "vms" {
   ]
 }
 
-#Custom script installation /scripts/deployment.ps1
+resource "azurerm_recovery_services_vault" "rsv" {
+  name                = var.rsv_name
+  location            = var.locations[0]
+  resource_group_name = var.resource_group_names[0]
+  sku                 = "Standard"
+  storage_mode_type   = "ZoneRedundant" 
+
+  soft_delete_enabled = true
+}
+
+#Custom script installation /scripts/deployment.ps1 - still not working
 resource "azurerm_virtual_machine_extension" "custom_script_extension" {
   for_each = var.vm_configs
 
@@ -190,15 +199,14 @@ resource "azurerm_network_interface" "nics" {
   name                          = "${each.key}-nic"
   resource_group_name           = each.value.rg
 
-  accelerated_networking_enabled = true
-
   tags = {
     environment = each.value.environment
   }
 
   ip_configuration {
     name                          = "ipconfig1"
-    private_ip_address_allocation = "Dynamic"
+    private_ip_address_allocation = "Static"
+    private_ip_address            = each.value.ip_configuration
     public_ip_address_id          = azurerm_public_ip.ips[each.key].id
     subnet_id                     = azurerm_subnet.subnets[each.value.subnet_name].id
   }
@@ -260,23 +268,45 @@ resource "azurerm_network_security_rule" "rules" {
   ]
 }
 
-# resource "azurerm_virtual_network_gateway" "vpn_gw" {
-#   location            = var.location
-#   name                = "dmf-vpn-gw-prod"
-#   resource_group_name = var.rgs[0]
-#   sku                 = "VpnGw1AZ"
-#   tags = {
-#     environment = "production"
-#   }
-#   type = "Vpn"
-#   ip_configuration {
-#     name                 = "default"
-#     public_ip_address_id = azurerm_public_ip.pip_vpn_gw.id
-#     subnet_id            = azurerm_subnet.subnet_gw.id
-#   }
-#   depends_on = [
-#     azurerm_public_ip.pip_vpn_gw,
-#     azurerm_subnet.subnet_gw,
-#   ]
-# }
+resource "azurerm_managed_disk" "sql-data-disk" {
+  name                 = "sql-data-disk"
+  location             = var.locations[0]
+  resource_group_name  = var.resource_group_names[0]
+  storage_account_type = "Premium_ZRS"
+  create_option        = "Empty"
+  disk_size_gb         = 512
+
+  depends_on = [ 
+    azurerm_windows_virtual_machine.vms,
+    azurerm_resource_group.rgs 
+  ]
+}
+
+resource "azurerm_public_ip" "pip_vpn_gw" {
+  name                = "vpn_gw_pip"
+  location            = var.locations[0]
+  resource_group_name = var.rgs[0]
+
+  allocation_method   = "Static" 
+}
+
+resource "azurerm_virtual_network_gateway" "vpn_gw" {
+  location            = var.locations[0]
+  name                = var.vpn_gw_name
+  resource_group_name = var.rgs[0]
+  sku                 = "VpnGw1AZ"
+  tags = {
+    environment = "production"
+  }
+  type = "Vpn"
+  ip_configuration {
+    name                 = "default"
+    public_ip_address_id = azurerm_public_ip.pip_vpn_gw.id
+    subnet_id            = azurerm_subnet.subnet_gw.id
+  }
+  depends_on = [
+    azurerm_public_ip.pip_vpn_gw,
+    azurerm_subnet.subnet_gw,
+  ]
+}
 
